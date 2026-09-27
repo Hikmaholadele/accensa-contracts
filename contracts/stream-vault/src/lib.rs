@@ -349,7 +349,8 @@ impl StreamVault {
             store(&env, stream_id, &stream);
         }
 
-        token_client(&env).transfer(&env.current_contract_address(), &merchant(&env), &amount);
+        let merchant = merchant(&env);
+        token_client(&env).transfer(&env.current_contract_address(), &merchant, &amount);
 
         StreamClaimedEvent {
             stream_id,
@@ -443,7 +444,8 @@ impl StreamVault {
         let token = token_client(&env);
         let this = env.current_contract_address();
         if merchant_amount > 0 {
-            token.transfer(&this, &merchant(&env), &merchant_amount);
+            let merchant = merchant(&env);
+            token.transfer(&this, &merchant, &merchant_amount);
         }
         if buyer_amount > 0 {
             token.transfer(&this, &stream.buyer, &buyer_amount);

@@ -9,6 +9,17 @@ breaking changes bump the **minor** version, and they are called out as such.
 ## [Unreleased]
 
 ### Added
+- **`reputation` (issue #450): soulbound verified-merchant credentials.** New
+  contract crate (`contracts/reputation`). Governance mints a
+  non-transferable soulbound token (SBT) to a merchant with `issue` (tiered:
+  `Verified` / `Trusted` / `Premium`) and burns it with `revoke`, or flags a
+  punitive, permanent death record with `slash` (ledger + reason bound to the
+  holder, blocking re-issue). Non-transferability is structural: there is no
+  `transfer`, `approve` or operator surface — a credential lives under a
+  storage key derived from its owner and can never be re-keyed, so a
+  verified-merchant badge cannot be bought, borrowed or farmed. Adds
+  `get_sbt`, `balance_of`, `total_issued` and `get_admin` views with pinned
+  `sbt_issued` / `sbt_revoked` / `sbt_slashed` events for indexers.
 - **`common` (issue #436): constant-time cryptographic comparison.** New
   `constant_time_eq(a, b)` helper (`contracts/common/src/constant_time.rs`)
   compares byte slices without short-circuiting: every byte and the length
