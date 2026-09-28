@@ -9,13 +9,10 @@ breaking changes bump the **minor** version, and they are called out as such.
 ## [Unreleased]
 
 ### Added
-- **`reputation` (issue #451): tiered NFT dispute-resolution badges for
-  arbitrators.** New `accensa-reputation` contract tracks each arbitrator's
-  lifetime accurate dispute resolutions — recorded only by the arbiter
-  authority bound at initialization, keyed by caller-supplied dispute ids
-  with replay protection — and mints a non-transferable Bronze badge on the
-  first accepted resolution, upgrading it in place to Silver at 50 and Gold
-  at 100 accurate resolutions (`BadgeMintedEvent` / `BadgeUpgradedEvent`).
+- **Tiered Fee Hook**: Implemented Tiered Fee Assessment Hook in Refund-Vault-Factory Deployments (issue #375).
+- **Batch Transaction Pipeline**: Added Batch Transaction Execution Pipeline to Multisig-Account (issue #385).
+- **Zero-Knowledge Commitments**: Implemented Zero-Knowledge Commitment Verification for State-Channel Off-Chain Settlements (issue #386).
+- **Reentrancy Guard Protocol**: Implemented Cross-Contract Call Reentrancy Guard Protocol (issue #388).
 - **`state-channel` (issue #458): virtual multi-hop HTLCs.** New `htlc` module
   locks slices of a channel's free escrow against a SHA-256 hash lock and
   settles them with a preimage (`add_htlc` / `resolve_htlc` / `refund_htlc`).
@@ -40,6 +37,17 @@ breaking changes bump the **minor** version, and they are called out as such.
   floor, and sends the proceeds to a configured burn address. Admin configures
   it once with `set_buyback_config`; anyone may trigger a swap with
   `execute_buyback` above the configured minimum size.
+- **`common`: standardized read-only telemetry view for frontend dashboards.**
+  New `telemetry` module (`contracts/common/src/telemetry.rs`) defines the
+  canonical `Telemetry` response struct — total/open/closed/disputed/finalized
+  channel counts, active escrow sum, and cumulative fees collected, stamped
+  with the ledger sequence and wall-clock timestamp — plus the
+  `TelemetryProvider` trait and generated `TelemetryClient` so dashboards pull
+  one aggregated snapshot cross-contract. The view is strictly read-only:
+  no writes, no TTL extension, no authorization, and O(1) targeted storage
+  reads (one `instance().get` per field, never record iteration), so the CPU
+  cost is independent of channel/refund volume. Includes unit, read-only
+  property, and completeness tests.
 - **`common` (issue #436): constant-time cryptographic comparison.** New
   `constant_time_eq(a, b)` helper (`contracts/common/src/constant_time.rs`)
   compares byte slices without short-circuiting: every byte and the length

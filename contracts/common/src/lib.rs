@@ -305,4 +305,7 @@ pub mod constant_time;
 pub mod events;
 pub mod math;
 pub mod nonce;
+pub mod reentrancy;
 pub mod storage;
+#[cfg(any(feature = "telemetry", test))]
+pub mod telemetry;
