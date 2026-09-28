@@ -1,36 +1,60 @@
-//! On-chain reputation for Accensa (issue #451).
+//! On-chain reputation for Accensa.
 //!
-//! This contract rewards decentralized arbitrators with tiered NFT badges
-//! based on their lifetime record of **accurate dispute resolutions** — see
-//! [`badges`] for the tier table, minting model and storage shape.
+//! Two independent features share this contract:
+//!
+//! - **Arbitrator badges** (issue #451): tiered NFT badges minted and
+//!   upgraded from a lifetime record of accurate dispute resolutions — see
+//!   [`badges`].
+//! - **Buyer credit scoring** (issue #452): a dynamic 0–1000 score per buyer
+//!   driven by escrow outcomes, with inactivity decay and zero-fee tiers —
+//!   see [`credit_score`].
 //!
 //! # Access model
 //!
-//! - `initialize` binds a single **arbiter authority** (the dispute-resolution
-//!   contract or governance multisig). Only that address may call
-//!   `record_resolution`.
-//! - Everything else is read-only, so indexers and bazaar listings can gate on
-//!   badge tier without paying for auth.
+//! - `initialize` binds a single authority address (the dispute-resolution
+//!   or escrow/settlement contract, or a governance multisig). Only that
+//!   address may record resolutions or score events — delegated
+//!   record-keeping, never claimed.
+//! - Everything else is read-only, so indexers, bazaar listings and fee
+//!   calculators can gate on badge tier or credit score without paying for
+//!   auth.
 //!
-//! # MVP cuts (issue #451)
+//! # MVP cuts
 //!
 //! Deliberately out of scope: transfer/approval paths (badges are
 //! non-transferable by construction), per-dispute inaccuracy tracking, badge
-//! revocation/slashing, and metadata URIs.
+//! revocation/slashing, metadata URIs, and self-reported credit history.
 
 #![no_std]
 
 mod badges;
 #[cfg(test)]
 mod badges_test;
+mod credit_score;
+#[cfg(test)]
+mod credit_score_test;
 
 use badges::{Badge, BadgeTier, Error};
-use soroban_sdk::{contract, contractimpl, contractmeta, Address, Env};
+use soroban_sdk::{contract, contracterror, contractimpl, contractmeta, Address, Env};
 
 pub use badges::{
     BadgeMintedEvent, BadgeUpgradedEvent, DataKey as BadgeDataKey, ResolutionRecordedEvent,
     BRONZE_THRESHOLD, GOLD_THRESHOLD, SILVER_THRESHOLD,
 };
+pub use credit_score::{
+    apply_decay, fee_bps_for, CreditDataKey, CreditRecord, CreditUpdatedEvent, ScoreChangeReason,
+    ScoreConfig, DECAY_INTERVAL_LEDGERS, DECAY_RATE_BPS, DEFAULT_GOLD_TIER, DEFAULT_ZERO_FEE_TIER,
+    GROWTH_RATE_BPS, MAX_SCORE, PENALTY_RATE_BPS, SCORE_FLOOR, STARTING_SCORE,
+};
+
+/// Reads the bound authority address, failing with
+/// [`CreditError::NotInitialized`] if absent.
+fn require_authority(env: &Env) -> Result<Address, CreditError> {
+    env.storage()
+        .instance()
+        .get(&BadgeDataKey::Admin)
+        .ok_or(CreditError::NotInitialized)
+}
 
 contractmeta!(key = "name", val = "AccensaReputation");
 contractmeta!(key = "version", val = env!("CARGO_PKG_VERSION"));
@@ -38,6 +62,24 @@ contractmeta!(
     key = "repo",
     val = "https://github.com/accensa/accensa-contracts"
 );
+
+/// Error variants added for buyer credit scoring (issue #452). The badge
+/// variants live in [`badges::Error`]; keeping the additions separate keeps
+/// the #451 discriminants stable.
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[repr(u32)]
+pub enum CreditError {
+    /// A state-changing call was made before `initialize`.
+    NotInitialized = 2,
+    /// The caller is not the bound escrow authority.
+    Unauthorized = 3,
+    /// A re-tuned tier cut-off is out of range or ordered wrong
+    /// (`zero_fee_tier` must be ≥ `gold_tier`, both ≤ [`MAX_SCORE`]).
+    InvalidConfig = 7,
+    /// The escrow id has already been recorded (replay protection).
+    EscrowAlreadyRecorded = 8,
+}
 
 #[contract]
 pub struct Reputation;
@@ -205,5 +247,159 @@ impl Reputation {
             badges::SILVER_THRESHOLD,
             badges::GOLD_THRESHOLD,
         )
+    }
+
+    // ── Buyer credit scoring (issue #452) ─────────────────────────────────
+
+    /// Record a **successful escrow completion** for `buyer`, growing their
+    /// score along the growth curve and applying any pending inactivity
+    /// decay first. Escrow authority only.
+    ///
+    /// `escrow_id` is ledger-scoped replay protection supplied by the
+    /// authority; recording the same id twice is rejected.
+    ///
+    /// Returns the buyer's post-call score.
+    ///
+    /// # Errors
+    /// - `NotInitialized`: before `initialize`.
+    /// - `Unauthorized`: caller is not the escrow authority.
+    /// - `EscrowAlreadyRecorded`: `escrow_id` was already consumed.
+    pub fn record_completion(env: Env, buyer: Address, escrow_id: u64) -> Result<u64, CreditError> {
+        require_authority(&env)?.require_auth();
+
+        let escrow_key = CreditDataKey::CompletionEscrow(escrow_id);
+        if env.storage().persistent().has(&escrow_key) {
+            return Err(CreditError::EscrowAlreadyRecorded);
+        }
+
+        let mut record = credit_score::get_record_impl(&env, &buyer).unwrap_or(CreditRecord {
+            score: STARTING_SCORE,
+            completions: 0,
+            fraud_count: 0,
+            last_update: env.ledger().sequence(),
+        });
+        let old_score =
+            credit_score::apply_decay(record.score, record.last_update, env.ledger().sequence());
+
+        // Growth: a fraction of the remaining headroom to MAX_SCORE.
+        let headroom = MAX_SCORE - old_score;
+        let growth = (headroom as u128 * GROWTH_RATE_BPS as u128 / 10_000) as u64;
+        record.score = old_score + growth;
+        record.completions += 1;
+        record.last_update = env.ledger().sequence();
+
+        credit_score::store(&env, &buyer, &record);
+        env.storage().persistent().set(&escrow_key, &buyer);
+        env.storage()
+            .persistent()
+            .extend_ttl(&escrow_key, 100, 518_400);
+
+        CreditUpdatedEvent {
+            buyer: buyer.clone(),
+            old_score,
+            new_score: record.score,
+            reason: ScoreChangeReason::Completion,
+        }
+        .publish(&env);
+
+        Ok(record.score)
+    }
+
+    /// Record a **fraudulent dispute loss** for `buyer`, dropping their
+    /// score along the penalty curve (a fraction of the *current* score, so
+    /// the higher the score the harder the fall) and applying any pending
+    /// inactivity decay first. Escrow authority only.
+    ///
+    /// Returns the buyer's post-call score.
+    ///
+    /// # Errors
+    /// - `NotInitialized`: before `initialize`.
+    /// - `Unauthorized`: caller is not the escrow authority.
+    pub fn record_fraud(env: Env, buyer: Address) -> Result<u64, CreditError> {
+        require_authority(&env)?.require_auth();
+
+        let mut record = credit_score::get_record_impl(&env, &buyer).unwrap_or(CreditRecord {
+            score: STARTING_SCORE,
+            completions: 0,
+            fraud_count: 0,
+            last_update: env.ledger().sequence(),
+        });
+        let old_score =
+            credit_score::apply_decay(record.score, record.last_update, env.ledger().sequence());
+
+        // Penalty: a fraction of the current score.
+        let penalty = (old_score as u128 * PENALTY_RATE_BPS as u128 / 10_000) as u64;
+        record.score = old_score - penalty;
+        record.fraud_count += 1;
+        record.last_update = env.ledger().sequence();
+
+        credit_score::store(&env, &buyer, &record);
+
+        CreditUpdatedEvent {
+            buyer: buyer.clone(),
+            old_score,
+            new_score: record.score,
+            reason: ScoreChangeReason::Fraud,
+        }
+        .publish(&env);
+
+        Ok(record.score)
+    }
+
+    /// Re-tune the zero-fee tier cut-offs. Escrow authority only.
+    ///
+    /// # Errors
+    /// - `NotInitialized`: before `initialize`.
+    /// - `Unauthorized`: caller is not the escrow authority.
+    /// - `InvalidConfig`: `zero_fee_tier` < `gold_tier`, either exceeds
+    ///   `MAX_SCORE`, or `gold_tier` is `0` (scores below the gold tier pay
+    ///   the full fee, so a zero gold cut-off would be meaningless).
+    pub fn set_score_config(
+        env: Env,
+        gold_tier: u64,
+        zero_fee_tier: u64,
+    ) -> Result<(), CreditError> {
+        require_authority(&env)?.require_auth();
+        if zero_fee_tier < gold_tier || zero_fee_tier > MAX_SCORE || gold_tier == 0 {
+            return Err(CreditError::InvalidConfig);
+        }
+        env.storage().instance().set(
+            &CreditDataKey::ScoreConfig,
+            &ScoreConfig {
+                gold_tier,
+                zero_fee_tier,
+            },
+        );
+        Ok(())
+    }
+
+    /// Returns the buyer's current score, applying pending inactivity decay
+    /// without recording anything. Buyers with no history get the neutral
+    /// [`STARTING_SCORE`]. Read-only.
+    pub fn get_score(env: Env, buyer: Address) -> u64 {
+        match credit_score::get_record_impl(&env, &buyer) {
+            None => STARTING_SCORE,
+            Some(record) => {
+                credit_score::apply_decay(record.score, record.last_update, env.ledger().sequence())
+            }
+        }
+    }
+
+    /// Returns the buyer's full credit record, if they have one. Read-only.
+    pub fn get_credit_record(env: Env, buyer: Address) -> Option<CreditRecord> {
+        credit_score::get_record_impl(&env, &buyer)
+    }
+
+    /// Returns the active tier configuration, including factory defaults if
+    /// the authority has not re-tuned it. Read-only.
+    pub fn get_score_config(env: Env) -> ScoreConfig {
+        credit_score::get_config_impl(&env)
+    }
+
+    /// Maps a score to the escrow fee in basis points: full fee below the
+    /// gold tier, half at gold, zero at the zero-fee tier. Read-only.
+    pub fn get_fee_bps(env: Env, buyer: Address, base_fee_bps: u64) -> u64 {
+        let score = Self::get_score(env.clone(), buyer);
+        credit_score::fee_bps_for(score, base_fee_bps, &credit_score::get_config_impl(&env))
     }
 }
