@@ -9,6 +9,13 @@ breaking changes bump the **minor** version, and they are called out as such.
 ## [Unreleased]
 
 ### Added
+- **`reputation` (issue #451): tiered NFT dispute-resolution badges for
+  arbitrators.** New `accensa-reputation` contract tracks each arbitrator's
+  lifetime accurate dispute resolutions — recorded only by the arbiter
+  authority bound at initialization, keyed by caller-supplied dispute ids
+  with replay protection — and mints a non-transferable Bronze badge on the
+  first accepted resolution, upgrading it in place to Silver at 50 and Gold
+  at 100 accurate resolutions (`BadgeMintedEvent` / `BadgeUpgradedEvent`).
 - **Tiered Fee Hook**: Implemented Tiered Fee Assessment Hook in Refund-Vault-Factory Deployments (issue #375).
 - **Batch Transaction Pipeline**: Added Batch Transaction Execution Pipeline to Multisig-Account (issue #385).
 - **Zero-Knowledge Commitments**: Implemented Zero-Knowledge Commitment Verification for State-Channel Off-Chain Settlements (issue #386).
