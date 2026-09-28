@@ -9,17 +9,30 @@ breaking changes bump the **minor** version, and they are called out as such.
 ## [Unreleased]
 
 ### Added
-- **`reputation` (issue #450): soulbound verified-merchant credentials.** New
-  contract crate (`contracts/reputation`). Governance mints a
-  non-transferable soulbound token (SBT) to a merchant with `issue` (tiered:
-  `Verified` / `Trusted` / `Premium`) and burns it with `revoke`, or flags a
-  punitive, permanent death record with `slash` (ledger + reason bound to the
-  holder, blocking re-issue). Non-transferability is structural: there is no
-  `transfer`, `approve` or operator surface — a credential lives under a
-  storage key derived from its owner and can never be re-keyed, so a
-  verified-merchant badge cannot be bought, borrowed or farmed. Adds
-  `get_sbt`, `balance_of`, `total_issued` and `get_admin` views with pinned
-  `sbt_issued` / `sbt_revoked` / `sbt_slashed` events for indexers.
+- **`state-channel` (issue #458): virtual multi-hop HTLCs.** New `htlc` module
+  locks slices of a channel's free escrow against a SHA-256 hash lock and
+  settles them with a preimage (`add_htlc` / `resolve_htlc` / `refund_htlc`).
+  Hops may be linked to an upstream parent, and a linked hop's timeout must be
+  **strictly smaller** than its parent's, so a route's timeouts decrease
+  downstream and an intermediary can always pull the upstream hop through
+  before it expires. Pending reservations are excluded from the sender's free
+  balance, and refunds release them permissionlessly after the timeout.
+- **`state-channel` (issue #459): watchtower reward bounties.** The receiver
+  may attach a bounty (`set_watchtower_bounty`, capped at 20%) that pays a
+  fraction of the recovered balance to the watchtower that files a successful
+  counter-proof on their behalf (`watchtower_counter_evidence`). The reward is
+  carved out of the receiver's settlement payout at `finalize_dispute` and is
+  one-shot, so escrow still balances exactly.
+- **`state-channel` (issue #460): channel splicing.** `splice_in` / `splice_out`
+  resize an open channel's capacity in place — adding sender funds or
+  withdrawing only the sender's uncommitted escrow — while the off-chain state
+  keeps running. Both parties must authorize the new capacity limit.
+- **`treasury` (issue #465): automated governance-token buyback & burn.** New
+  `buyback` module spends accumulated protocol fees on the governance token via
+  a pluggable `DexRouter`, verifies the swap against a caller-supplied slippage
+  floor, and sends the proceeds to a configured burn address. Admin configures
+  it once with `set_buyback_config`; anyone may trigger a swap with
+  `execute_buyback` above the configured minimum size.
 - **`common` (issue #436): constant-time cryptographic comparison.** New
   `constant_time_eq(a, b)` helper (`contracts/common/src/constant_time.rs`)
   compares byte slices without short-circuiting: every byte and the length
