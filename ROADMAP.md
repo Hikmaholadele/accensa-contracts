@@ -75,4 +75,7 @@
   - Updated `SUPPORT.md` to reference `soroban-sdk` 27.0.6 matching the resolved workspace pin
   - Cited `Cargo.lock` as the single source of truth for the SDK version
 
+## Issue #690: read the selected tier without unwrapping
 
+- [x] Read the selected tier's fee without unwrapping (#690)
+  - `contracts/refund-vault/src/tiers.rs` — `set_tier_ladder` now returns `Error::InvalidTierLadder` when the preserved volume points past the last rung, and `on_settled` walks the ladder to read the promoting rung's fee.
