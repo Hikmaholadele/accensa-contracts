@@ -69,3 +69,8 @@
 - [x] `get_domain_separator` returns `Result<BytesN<32>, Error>` with `Error::NotInitialized` on missing state (#683)
   - `contracts/refund-vault/src/lib.rs` — returns typed error instead of unwrap on missing `DomainSeparator`
 
+## Issue #689: remove unsafe ladder access in refund-vault::on_settled
+
+- [x] `on_settled` obtains the promoting rung's fee without indexing the ladder (#689)
+  - `contracts/refund-vault/src/tiers.rs` — iteration replaces `ladder.get(new_tier).unwrap()`; behaviour unchanged for valid ladders
+
