@@ -33,6 +33,10 @@
   - Reconciled zero-window semantics in `docs/SECURITY_MODEL.md` to reflect unbounded window and TTL handling
   - Aligned `docs/storage-audit.md` and removed references to non-existent `set_refund_window`, `InvalidWindow`, and `MIN_REFUND_WINDOW`
 
+## Issue #644: Fail closed when DataKey::Threshold is missing from instance storage
+
+- [x] Read `DataKey::Threshold` with `ok_or(...)` in `__check_auth` instead of `unwrap_or(1)` so a lapsed entry rejects authorization rather than lowering the threshold to 1 (#644)
+
 ## Issue #665: Fix CONFORMANCE.md build-vectors paths to the receipt-anchor crate
 
 - [x] Fix CONFORMANCE.md build-vectors paths to the receipt-anchor crate (#665)
@@ -69,8 +73,10 @@
 - [x] `get_domain_separator` returns `Result<BytesN<32>, Error>` with `Error::NotInitialized` on missing state (#683)
   - `contracts/refund-vault/src/lib.rs` — returns typed error instead of unwrap on missing `DomainSeparator`
 
-## Issue #692: error arm for absent state in stream-vault::token_client
+## Issue #662: Correct the soroban-sdk version quoted in SUPPORT.md
 
-- [x] `token_client` returns `Result<token::Client, Error>` with `Error::NotInitialized` on missing state (#692)
-  - `contracts/stream-vault/src/lib.rs` — typed error instead of `expect`; `get_token` now returns `Result<Address, Error>`
+- [x] Correct the soroban-sdk version quoted in SUPPORT.md (#662)
+  - Updated `SUPPORT.md` to reference `soroban-sdk` 27.0.6 matching the resolved workspace pin
+  - Cited `Cargo.lock` as the single source of truth for the SDK version
+
 

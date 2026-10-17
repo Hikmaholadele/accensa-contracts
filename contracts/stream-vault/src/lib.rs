@@ -90,6 +90,9 @@ pub enum Error {
     NotInitialized = 7,
 }
 
+/// Storage key space of this contract: the per-instance configuration
+/// (`Merchant`, `Token`, `StreamCount`) and the persistent per-stream records
+/// indexed by `Stream(id)`.
 #[contracttype]
 pub enum DataKey {
     /// Recipient of every stream's disbursements.
@@ -244,6 +247,9 @@ fn store(env: &Env, stream_id: u64, stream: &DisbursementStream) {
         .extend_ttl(&key, extend_to, extend_to);
 }
 
+/// The stream-vault contract itself: one instance escrows buyer deposits for
+/// a single merchant and token, disbursing them linearly over each stream's
+/// ledger schedule.
 #[contract]
 pub struct StreamVault;
 
@@ -480,16 +486,18 @@ impl StreamVault {
         Ok(streamed_amount(&stream, env.ledger().sequence()) - stream.claimed)
     }
 
+    /// The merchant bound at construction: the only address that ever
+    /// receives this contract's payouts. Requires the contract to have been
+    /// initialized, as the address is read from instance storage.
     pub fn get_merchant(env: Env) -> Address {
         merchant(&env)
     }
 
-    /// The token stream deposits are denominated in.
-    ///
-    /// # Errors
-    /// - `NotInitialized`: the constructor-written token address is absent.
-    pub fn get_token(env: Env) -> Result<Address, Error> {
-        Ok(token_client(&env)?.address)
+    /// The token every stream on this instance is denominated in, bound at
+    /// construction. Requires the contract to have been initialized, as the
+    /// address is read from instance storage.
+    pub fn get_token(env: Env) -> Address {
+        token_client(&env).address
     }
 }
 
