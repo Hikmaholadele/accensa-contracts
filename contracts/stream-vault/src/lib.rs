@@ -85,6 +85,9 @@ pub enum Error {
     NothingToWithdraw = 5,
     /// Resuming would shift the schedule past `u32::MAX`.
     MathOverflow = 6,
+    /// The contract instance is missing constructor-written state, e.g. the
+    /// token address a `token_client` call needs.
+    NotInitialized = 7,
 }
 
 #[contracttype]
@@ -208,13 +211,16 @@ fn merchant(env: &Env) -> Address {
         .expect("initialized in the constructor")
 }
 
-fn token_client(env: &Env) -> token::Client<'_> {
+/// The token contract this vault streams, or [`Error::NotInitialized`] when
+/// the constructor-written `Token` key is absent (a caller reaching this
+/// before initialization).
+fn token_client(env: &Env) -> Result<token::Client<'_>, Error> {
     let token: Address = env
         .storage()
         .instance()
         .get(&DataKey::Token)
-        .expect("initialized in the constructor");
-    token::Client::new(env, &token)
+        .ok_or(Error::NotInitialized)?;
+    Ok(token::Client::new(env, &token))
 }
 
 fn load(env: &Env, stream_id: u64) -> Result<DisbursementStream, Error> {
@@ -308,7 +314,7 @@ impl StreamVault {
             },
         );
 
-        token_client(&env).transfer(&buyer, &this, &deposit);
+        token_client(&env)?.transfer(&buyer, &this, &deposit);
 
         StreamCreatedEvent {
             stream_id,
@@ -349,7 +355,7 @@ impl StreamVault {
             store(&env, stream_id, &stream);
         }
 
-        token_client(&env).transfer(&env.current_contract_address(), merchant(&env), &amount);
+        token_client(&env)?.transfer(&env.current_contract_address(), merchant(&env), &amount);
 
         StreamClaimedEvent {
             stream_id,
@@ -440,7 +446,7 @@ impl StreamVault {
             .persistent()
             .remove(&DataKey::Stream(stream_id));
 
-        let token = token_client(&env);
+        let token = token_client(&env)?;
         let this = env.current_contract_address();
         if merchant_amount > 0 {
             token.transfer(&this, merchant(&env), &merchant_amount);
@@ -478,10 +484,18 @@ impl StreamVault {
         merchant(&env)
     }
 
-    pub fn get_token(env: Env) -> Address {
-        token_client(&env).address
+    /// The token stream deposits are denominated in.
+    ///
+    /// # Errors
+    /// - `NotInitialized`: the constructor-written token address is absent.
+    pub fn get_token(env: Env) -> Result<Address, Error> {
+        Ok(token_client(&env)?.address)
     }
 }
 
 #[cfg(test)]
 mod test;
+
+#[cfg(test)]
+#[path = "token_client_missing_test.rs"]
+mod token_client_missing_test;

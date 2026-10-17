@@ -69,3 +69,8 @@
 - [x] `get_domain_separator` returns `Result<BytesN<32>, Error>` with `Error::NotInitialized` on missing state (#683)
   - `contracts/refund-vault/src/lib.rs` — returns typed error instead of unwrap on missing `DomainSeparator`
 
+## Issue #692: error arm for absent state in stream-vault::token_client
+
+- [x] `token_client` returns `Result<token::Client, Error>` with `Error::NotInitialized` on missing state (#692)
+  - `contracts/stream-vault/src/lib.rs` — typed error instead of `expect`; `get_token` now returns `Result<Address, Error>`
+
