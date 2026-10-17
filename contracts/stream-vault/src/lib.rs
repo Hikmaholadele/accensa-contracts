@@ -497,7 +497,7 @@ impl StreamVault {
     /// construction. Requires the contract to have been initialized, as the
     /// address is read from instance storage.
     pub fn get_token(env: Env) -> Address {
-        token_client(&env).address
+        token_client(&env).expect("initialized").address
     }
 }
 
