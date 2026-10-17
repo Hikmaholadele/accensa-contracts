@@ -8,8 +8,17 @@ breaking changes bump the **minor** version, and they are called out as such.
 
 ## [Unreleased]
 
-- **`reputation` (issue #691): `burn` reports missing state with a typed error.**
-  `sbt::burn` returns `Result<SoulboundToken, SbtError>` and answers `SbtError::SbtNotFound` instead of unwrapping the storage read; `revoke` propagates it with `?`.
+- **`refund-vault-factory` / `oracle` (issues #562, #563): test the fee hardcap
+  boundary and the oracle read surface.**
+  `factory_tests.rs` proves `create_vault` rejects 501 bp with
+  `Error::FeeExceedsHardcap` without advancing the salt counter, tracking a
+  vault or changing TVL, and accepts the inclusive 500 bp boundary with the fee
+  stored on the new vault. `oracle/src/test.rs` round-trips stored rounds
+  through `get_round_data` and `latest_round_data`, asserts the typed `NoData`
+  error for an unknown round id and an empty feed, and checks `get_admin`
+  returns the constructor address. Test-only — no contract behavior change.
+- **`refund-vault` (issue #689): `on_settled` walks the fee ladder without indexing.**
+  The promoting rung's fee is read by iterating the ladder, so an out-of-range rung can no longer trap the claim path. Behaviour for every valid ladder is unchanged.
 - **`insurance` (issue #608): assert deposit, withdraw, borrow and repay lifecycle events.**
   Extended `contracts/insurance/src/test.rs` with `lifecycle_events` asserting exact event XDR, cross-checking storage values, and asserting zero balance on emptied positions.
 - **`receipt-shard` (issue #678): return typed error on missing state in has_live_records.**
