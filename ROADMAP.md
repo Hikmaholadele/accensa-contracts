@@ -69,8 +69,10 @@
 - [x] `get_domain_separator` returns `Result<BytesN<32>, Error>` with `Error::NotInitialized` on missing state (#683)
   - `contracts/refund-vault/src/lib.rs` — returns typed error instead of unwrap on missing `DomainSeparator`
 
-## Issue #690: remove unsafe tier access in refund-vault::set_tier_ladder
+## Issue #662: Correct the soroban-sdk version quoted in SUPPORT.md
 
-- [x] `set_tier_ladder` obtains the selected rung's fee without indexing the ladder (#690)
-  - `contracts/refund-vault/src/tiers.rs` — `ok_or(Error::InvalidTierLadder)?` replaces `tiers.get(current_tier).unwrap()`
+- [x] Correct the soroban-sdk version quoted in SUPPORT.md (#662)
+  - Updated `SUPPORT.md` to reference `soroban-sdk` 27.0.6 matching the resolved workspace pin
+  - Cited `Cargo.lock` as the single source of truth for the SDK version
+
 
