@@ -8,6 +8,8 @@ breaking changes bump the **minor** version, and they are called out as such.
 
 ## [Unreleased]
 
+- **`reputation` (issue #691): `burn` reports missing state with a typed error.**
+  `sbt::burn` returns `Result<SoulboundToken, SbtError>` and answers `SbtError::SbtNotFound` instead of unwrapping the storage read; `revoke` propagates it with `?`.
 - **`insurance` (issue #608): assert deposit, withdraw, borrow and repay lifecycle events.**
   Extended `contracts/insurance/src/test.rs` with `lifecycle_events` asserting exact event XDR, cross-checking storage values, and asserting zero balance on emptied positions.
 - **`receipt-shard` (issue #678): return typed error on missing state in has_live_records.**

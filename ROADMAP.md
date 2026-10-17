@@ -69,3 +69,8 @@
 - [x] `get_domain_separator` returns `Result<BytesN<32>, Error>` with `Error::NotInitialized` on missing state (#683)
   - `contracts/refund-vault/src/lib.rs` — returns typed error instead of unwrap on missing `DomainSeparator`
 
+## Issue #691: error arm for absent state in reputation::burn
+
+- [x] `sbt::burn` returns `Result<SoulboundToken, SbtError>` with `SbtError::SbtNotFound` on missing state (#691)
+  - `contracts/reputation/src/sbt.rs` — typed error instead of unwrap; `revoke` propagates it with `?`
+
