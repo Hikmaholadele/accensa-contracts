@@ -18,8 +18,13 @@ breaking changes bump the **minor** version, and they are called out as such.
   without a lock has exactly the weight they had before. The escrowed token is
   set once with `set_ve_token`, gated like `set_treasury_token`. Escrow errors
   are a separate `VeError` enum, so the governance `Error` spec does not grow.
-- **`refund-vault` / `receipt-anchor` (issues #560, #561): test the coupon
-  lifecycle and the incremental-leaf receipt API.**
+- **`stream-vault` (issue #692): report a missing token with a typed error.**
+  `StreamVault::token_client` now returns `Result<token::Client, Error>` with
+  `Error::NotInitialized` when the constructor-written `Token` key is absent,
+  instead of unwinding on a vault whose state was reset, and the disbursement,
+  claim and settlement paths unwrap through `token_client` only after that
+  check. `token_client_before_initialization_returns_not_initialized` pins
+  the typed result.
   `contracts/refund-vault/src/coupons.rs` gains an inline suite pinning the
   5 000 bp discount cap (accepted at the boundary, `Error::InvalidRatio` above
   it), the duplicate-mint guard, and the redeemed-once rule with `get_coupon`

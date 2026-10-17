@@ -73,6 +73,11 @@
 - [x] `get_domain_separator` returns `Result<BytesN<32>, Error>` with `Error::NotInitialized` on missing state (#683)
   - `contracts/refund-vault/src/lib.rs` — returns typed error instead of unwrap on missing `DomainSeparator`
 
+## Issue #692: report a missing token with a typed error
+
+- [x] Report a missing token address with `Error::NotInitialized` (#692)
+  - `contracts/stream-vault/src/lib.rs` — `token_client` returns `Error::NotInitialized` instead of unwinding when the `Token` key is absent
+
 ## Issue #662: Correct the soroban-sdk version quoted in SUPPORT.md
 
 - [x] Correct the soroban-sdk version quoted in SUPPORT.md (#662)
