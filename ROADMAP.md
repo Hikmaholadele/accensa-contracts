@@ -77,5 +77,5 @@
 
 ## Issue #690: read the selected tier without unwrapping
 
-- [x] Read the selected tier's fee without unwrapping (#690)
-  - `contracts/refund-vault/src/tiers.rs` — `set_tier_ladder` now returns `Error::InvalidTierLadder` when the preserved volume points past the last rung, and `on_settled` walks the ladder to read the promoting rung's fee.
+- [x] `set_tier_ladder` uses a checked lookup for the selected tier's fee (#690)
+  - `contracts/refund-vault/src/tiers.rs` — `set_tier_ladder` performs a checked `tiers.get(current_tier)` lookup with `Error::InvalidTierLadder` as a defensive fallback when the preserved volume points past the last rung; validated ladders retain their existing behaviour.

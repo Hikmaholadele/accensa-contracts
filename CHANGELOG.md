@@ -10,8 +10,8 @@ breaking changes bump the **minor** version, and they are called out as such.
 
 - **`refund-vault` (issue #689): `on_settled` walks the fee ladder without indexing.**
   The promoting rung's fee is read by iterating the ladder, so an out-of-range rung can no longer trap the claim path. Behaviour for every valid ladder is unchanged.
-- **`refund-vault` (issue #690): read the selected tier without unwrapping.**
-  `set_tier_ladder` now reports a missing rung via `Error::InvalidTierLadder` instead of unwrapping `get(current_tier)`, and `on_settled` reads the promoting rung's fee by iterating the ladder so a skipped rung can no longer trap the claim path.
+- **`refund-vault` (issue #690): `set_tier_ladder` uses a checked lookup.**
+  `set_tier_ladder` reads the selected rung's fee with `tiers.get(current_tier)` followed by a typed `Error::InvalidTierLadder` fallback (instead of unwrapping), so a missing rung resolves to the crate's error and validated ladders retain their existing behaviour.
 - **`insurance` (issue #608): assert deposit, withdraw, borrow and repay lifecycle events.**
   Extended `contracts/insurance/src/test.rs` with `lifecycle_events` asserting exact event XDR, cross-checking storage values, and asserting zero balance on emptied positions.
 - **`receipt-shard` (issue #678): return typed error on missing state in has_live_records.**
