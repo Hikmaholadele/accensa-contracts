@@ -245,7 +245,12 @@ impl RefundVault {
             .map_or(0, |state| state.settled_volume);
 
         let current_tier = tier_for_volume(&tiers, settled_volume);
-        let fee_bps = tiers.get(current_tier).unwrap().fee_bps;
+        // `current_tier` is always inside the ladder for a validated one, but
+        // keep the missing-rung arm typed instead of unwrapping the lookup.
+        let fee_bps = tiers
+            .get(current_tier)
+            .ok_or(Error::InvalidTierLadder)?
+            .fee_bps;
         let state = MerchantTierState {
             settled_volume,
             current_tier,

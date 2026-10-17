@@ -8,6 +8,8 @@ breaking changes bump the **minor** version, and they are called out as such.
 
 ## [Unreleased]
 
+- **`refund-vault` (issue #690): `set_tier_ladder` reads the selected rung without unwrapping.**
+  The selected rung's fee is obtained through `Error::InvalidTierLadder` instead of an unchecked lookup, so a malformed ladder cannot trap installation. Behaviour for every validated ladder is unchanged.
 - **`insurance` (issue #608): assert deposit, withdraw, borrow and repay lifecycle events.**
   Extended `contracts/insurance/src/test.rs` with `lifecycle_events` asserting exact event XDR, cross-checking storage values, and asserting zero balance on emptied positions.
 - **`receipt-shard` (issue #678): return typed error on missing state in has_live_records.**
