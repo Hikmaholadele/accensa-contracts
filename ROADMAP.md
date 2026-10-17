@@ -33,6 +33,10 @@
   - Reconciled zero-window semantics in `docs/SECURITY_MODEL.md` to reflect unbounded window and TTL handling
   - Aligned `docs/storage-audit.md` and removed references to non-existent `set_refund_window`, `InvalidWindow`, and `MIN_REFUND_WINDOW`
 
+## Issue #644: Fail closed when DataKey::Threshold is missing from instance storage
+
+- [x] Read `DataKey::Threshold` with `ok_or(...)` in `__check_auth` instead of `unwrap_or(1)` so a lapsed entry rejects authorization rather than lowering the threshold to 1 (#644)
+
 ## Issue #665: Fix CONFORMANCE.md build-vectors paths to the receipt-anchor crate
 
 - [x] Fix CONFORMANCE.md build-vectors paths to the receipt-anchor crate (#665)
@@ -69,11 +73,10 @@
 - [x] `get_domain_separator` returns `Result<BytesN<32>, Error>` with `Error::NotInitialized` on missing state (#683)
   - `contracts/refund-vault/src/lib.rs` — returns typed error instead of unwrap on missing `DomainSeparator`
 
-## Issue #691: report missing state from `burn` instead of aborting
+## Issue #692: report a missing token with a typed error
 
-- [x] Report missing state from `burn` with a typed error (#691)
-  - `contracts/reputation/src/lib.rs` — `Reputation::burn` propagates the typed `SbtError` from `burn` instead of unwinding
-  - `contracts/reputation/src/sbt.rs` — `Sbt::burn` returns `SbtError::SbtNotFound` when the owner holds no credential
+- [x] Report a missing token address with `Error::NotInitialized` (#692)
+  - `contracts/stream-vault/src/lib.rs` — `token_client` returns `Error::NotInitialized` instead of unwinding when the `Token` key is absent
 
 ## Issue #662: Correct the soroban-sdk version quoted in SUPPORT.md
 
@@ -81,4 +84,7 @@
   - Updated `SUPPORT.md` to reference `soroban-sdk` 27.0.6 matching the resolved workspace pin
   - Cited `Cargo.lock` as the single source of truth for the SDK version
 
+## Issue #690: read the selected tier without unwrapping
 
+- [x] `set_tier_ladder` uses a checked lookup for the selected tier's fee (#690)
+  - `contracts/refund-vault/src/tiers.rs` — `set_tier_ladder` performs a checked `tiers.get(current_tier)` lookup with `Error::InvalidTierLadder` as a defensive fallback when the preserved volume points past the last rung; validated ladders retain their existing behaviour.
