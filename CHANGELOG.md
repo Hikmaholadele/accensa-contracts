@@ -19,6 +19,9 @@ breaking changes bump the **minor** version, and they are called out as such.
   returns the constructor address. Test-only — no contract behavior change.
 - **`refund-vault` (issue #689): `on_settled` walks the fee ladder without indexing.**
   The promoting rung's fee is read by iterating the ladder, so an out-of-range rung can no longer trap the claim path. Behaviour for every valid ladder is unchanged.
+- **`reputation` (issue #691): report missing state from `burn` instead of aborting.**
+  `Reputation::burn` and `Sbt::burn` now return `Result<SoulboundToken, SbtError>` with `SbtError::SbtNotFound` when the owner holds no credential, instead of trapping, so a caller that reaches burn before any credential is stored gets a typed error.
+  The promoting rung's fee is read by iterating the ladder, so an out-of-range rung can no longer trap the claim path. Behaviour for every valid ladder is unchanged.
 - **`insurance` (issue #608): assert deposit, withdraw, borrow and repay lifecycle events.**
   Extended `contracts/insurance/src/test.rs` with `lifecycle_events` asserting exact event XDR, cross-checking storage values, and asserting zero balance on emptied positions.
 - **`receipt-shard` (issue #678): return typed error on missing state in has_live_records.**

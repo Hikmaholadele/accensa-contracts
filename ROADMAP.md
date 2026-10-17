@@ -69,6 +69,12 @@
 - [x] `get_domain_separator` returns `Result<BytesN<32>, Error>` with `Error::NotInitialized` on missing state (#683)
   - `contracts/refund-vault/src/lib.rs` — returns typed error instead of unwrap on missing `DomainSeparator`
 
+## Issue #691: report missing state from `burn` instead of aborting
+
+- [x] Report missing state from `burn` with a typed error (#691)
+  - `contracts/reputation/src/lib.rs` — `Reputation::burn` propagates the typed `SbtError` from `burn` instead of unwinding
+  - `contracts/reputation/src/sbt.rs` — `Sbt::burn` returns `SbtError::SbtNotFound` when the owner holds no credential
+
 ## Issue #662: Correct the soroban-sdk version quoted in SUPPORT.md
 
 - [x] Correct the soroban-sdk version quoted in SUPPORT.md (#662)
