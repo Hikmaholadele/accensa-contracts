@@ -7,7 +7,8 @@ policy in [`docs/RELEASING.md`](docs/RELEASING.md): while the project is pre-1.0
 breaking changes bump the **minor** version, and they are called out as such.
 
 ## [Unreleased]
-
+- **`reputation` (issue #691): return a typed error when burning a missing credential.** Updated `sbt::burn` to return `SbtError::SbtNotFound` when the owner has no credential instead of aborting, propagated the error through `Reputation::revoke`, and added a regression test confirming that a failed burn does not create a revocation tombstone.
+  
 - **`automation` (issue #557): remove stray scratch files from repository root.**
   Removed 10 automation scratch files (`fix.sh`, `fix_budget.sh`,
   `fix_common.sh`, `fix_lib.sh`, `patch.sed`, `patch_changelog.py`,
