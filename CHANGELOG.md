@@ -8,6 +8,8 @@ breaking changes bump the **minor** version, and they are called out as such.
 
 ## [Unreleased]
 
+- **`reputation` (issue #691): return a typed error when burning a missing credential.** Updated `sbt::burn` to return `SbtError::SbtNotFound` when the owner has no credential instead of aborting, propagated the error through `Reputation::revoke`, and added a regression test confirming that a failed burn does not create a revocation tombstone.
+  
 - **`governance` (issue #552): test instance storage TTL eviction returns typed errors.**
   Added tests in `contracts/governance/src/test.rs` asserting that `propose` and
   `execute` operations return typed errors `InvalidVotingPeriod` and `InvalidMembers`
