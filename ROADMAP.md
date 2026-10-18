@@ -73,18 +73,16 @@
 - [x] `get_domain_separator` returns `Result<BytesN<32>, Error>` with `Error::NotInitialized` on missing state (#683)
   - `contracts/refund-vault/src/lib.rs` — returns typed error instead of unwrap on missing `DomainSeparator`
 
-## Issue #692: report a missing token with a typed error
+## Issue #649: Return a typed error when the yield float cannot cover a claim
 
-- [x] Report a missing token address with `Error::NotInitialized` (#692)
-  - `contracts/stream-vault/src/lib.rs` — `token_client` returns `Error::NotInitialized` instead of unwinding when the `Token` key is absent
+- [x] Return `Error::InsufficientBalance` when yield float is insufficient (#649)
+  - `contracts/treasury/src/distribution.rs` — verified contract holding balance of yield token before mutating user `pending`/`claimed`
+  - Added unit test in `contracts/treasury/src/distribution.rs` asserting typed error and unchanged pending yield
 
-## Issue #662: Correct the soroban-sdk version quoted in SUPPORT.md
+## Issue #722: guard `preview_settlement`'s cumulative sum against overflow
 
-- [x] Correct the soroban-sdk version quoted in SUPPORT.md (#662)
-  - Updated `SUPPORT.md` to reference `soroban-sdk` 27.0.6 matching the resolved workspace pin
-  - Cited `Cargo.lock` as the single source of truth for the SDK version
+- [x] Route the `previous_refunded + amount` sum in `preview_settlement` through `add_amounts` (#722)
+  - `contracts/refund-vault/src/settlement.rs` — typed `Error::MathOverflow` instead of a host abort
+  - `contracts/refund-vault/src/preview_settlement_overflow_tests.rs` — boundary test pins both operands at `i128::MAX` and asserts the returned error variant
 
-## Issue #690: read the selected tier without unwrapping
 
-- [x] `set_tier_ladder` uses a checked lookup for the selected tier's fee (#690)
-  - `contracts/refund-vault/src/tiers.rs` — `set_tier_ladder` performs a checked `tiers.get(current_tier)` lookup with `Error::InvalidTierLadder` as a defensive fallback when the preserved volume points past the last rung; validated ladders retain their existing behaviour.

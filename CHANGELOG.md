@@ -70,6 +70,76 @@ breaking changes bump the **minor** version, and they are called out as such.
   The promoting rung's fee is read by iterating the ladder, so an out-of-range rung can no longer trap the claim path. Behaviour for every valid ladder is unchanged.
 - **`refund-vault` (issue #690): `set_tier_ladder` uses a checked lookup.**
   `set_tier_ladder` reads the selected rung's fee with `tiers.get(current_tier)` followed by a typed `Error::InvalidTierLadder` fallback (instead of unwrapping), so a missing rung resolves to the crate's error and validated ladders retain their existing behaviour.
+
+- **`governance` (issue #552): test instance storage TTL eviction returns typed errors.**
+  Added tests in `contracts/governance/src/test.rs` asserting that `propose` and
+  `execute` operations return typed errors `InvalidVotingPeriod` and `InvalidMembers`
+  rather than panicking when instance storage TTL expires or mandatory config keys
+  are missing from instance storage.
+- **`ci` (issue #584): align Tier B budget-report comment with live `--check` enforcement.**
+  The `.github/workflows/ci.yml` Tier B step comment and the `budget.toml`
+  provenance header now accurately describe that `cargo budget-report --check`
+  runs on post-merge builds with `STELLAR_TESTNET_SECRET` to enforce committed
+  `[functions.*]` baselines within a 15% tolerance ceiling.
+- **`multisig-account` (issue #585): test execute_batch auth, ordering, and atomic rollback.**
+  New `execute_batch_tests` module in `contracts/multisig-account/src/test.rs`
+  proves that proposal execution runs calls in order with 1:1 result mapping,
+  direct external calls without multisig authorization fail `require_auth`,
+  and mid-batch traps cleanly roll back preceding state changes.
+- **`governance` (issue #586): client-driven tests for optimistic voting wrappers.**
+  Extended `contracts/governance/src/test.rs` with `GovernanceClient`-driven
+  tests covering `optimistic_submit`, `veto_optimistic`, `execute_optimistic`,
+  and `get_optimistic_proposal` across pass and deny paths, and verified ID
+  counter independence between standard and optimistic proposals.
+- **`state-channel` (issue #587): test verify_zk_commitment phase gates, amount bounds, and hash mismatch error.**
+  New `verify_zk_commitment_tests` module in `contracts/state-channel/src/test.rs`
+  tests that valid commitments return `Ok` on open channels, closed channels
+  return `ChannelNotOpen`, commitment hash mismatches return `InvalidSignature`
+  (pinned and documented), and values exceeding balance or negative values
+  return `InvalidAmount`.
+- **`reputation` (issue #621): credit key and event-payload parity tests.** Test-only
+  addition to `contracts/reputation/src/credit_score_test.rs` pinning the storage and
+  event surface of the credit scorer: `CreditDataKey::CompletionEscrow(u64)` replay
+  makes a duplicate escrow id a no-op on the score and the stored record, both
+  `record_completion` and `record_fraud` update the single shared
+  `CreditDataKey::Credit(Address)` entry, and the `CreditUpdatedEvent` payload is
+  asserted in full by XDR comparison on both paths, staying in agreement with the
+  getters and `get_fee_bps`. No contract behaviour change.
+- **`refund-vault` (issue #722): guard `preview_settlement`'s cumulative sum
+  against overflow.** The `previous_refunded + amount` sum in
+  `contracts/refund-vault/src/settlement.rs` now goes through
+  `accensa_common::math::add_amounts` instead of a bare `+`, so the failure arm
+  is the typed `Error::MathOverflow` (321) rather than a host abort (the
+  release profile sets `overflow-checks = true` with `panic = "abort"`). At the
+  boundary, `resolve_ceiling`'s ceiling gate rejects the non-representable
+  total first with `Error::ExceedsPayment`, so every overflowing input answers
+  with a typed variant. New
+  `contracts/refund-vault/src/preview_settlement_overflow_tests.rs` pins both
+  operands of the sum at `i128::MAX` and asserts the returned variant rather
+  than a panic.
+- **`receipt-shard` (issue #551): replace panic and assert sites in `consolidate`
+  with typed Error variants.** `ReceiptShard::consolidate` now returns
+  `Result<u32, Error>` instead of panicking on user-reachable conditions: a
+  destination matching the source returns `Error::DestinationMismatch` (104), a
+  missing batch returns `Error::BatchNotFound` (100), and a cross-contract
+  round-trip mismatch returns `Error::RoundTripMismatch` (105) while leaving
+  source storage untouched.
+- **`chore` (issue #558): remove unreferenced `contracts/upgrade-proxy`.**
+  Deleted the stranded `contracts/upgrade-proxy/` directory which contained only
+  an unreferenced test stub without Cargo.toml, src/, or workspace membership.
+  In-place upgrade paths on Soroban use `env.deployer().update_current_contract_wasm`
+  as documented in ADR-003.
+- **`ci` (issue #555): run deploy dry-run smoke test and bounded differential fuzz harness.**
+  Added CI steps to run `tests/test_deploy.sh` in dry-run mode and execute
+  `tests/differential/bolero_test.rs` bounded invariant campaign. Added
+  `tests/README.md` with instructions for reproducing both tests locally.
+- **`docs` (issue #559): reconcile DEPLOYMENTS.md and docs/ARCHITECTURE.md with manifest versions.**
+  Refreshed version banner to indicate `main` is at `0.3.0` while testnet addresses
+  run `0.1.0`. Added explicit per-address deployed version tags, verification
+  commands via on-chain WASM bytecode inspection, a notice on stale deployments,
+  and aligned CLI examples.
+- **`treasury` (issue #649): return typed InsufficientBalance error on unfunded yield float.**
+  `claim_yield` reads the contract's yield token balance before mutating user `pending` or `claimed` and returns `Error::InsufficientBalance` when the balance cannot cover the claim, leaving accrued yield intact.
 - **`insurance` (issue #608): assert deposit, withdraw, borrow and repay lifecycle events.**
   Extended `contracts/insurance/src/test.rs` with `lifecycle_events` asserting exact event XDR, cross-checking storage values, and asserting zero balance on emptied positions.
 - **`receipt-shard` (issue #678): return typed error on missing state in has_live_records.**
